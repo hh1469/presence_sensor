@@ -61,7 +61,9 @@ def on_message(_client, _userdata, message):
         if message.topic == "zigbee/Sonoff Presence Sensor 1":
             read_prensence_payload(message)
     except ValueError as e:
-        logger.error("error on_message %s", e)
+        logger.error("error on_message: %s", e)
+    except Exception as e:
+        logger.error("error on_message: %s", e)
 
 
 def read_prensence_payload(message):
@@ -83,9 +85,7 @@ def read_prensence_payload(message):
         else:
             logger.warning("ignore event")
     except json.JSONDecodeError as e:
-        logger.error("decode error %s", e)
-    except Exception as e:
-        logger.error("%s", e)
+        logger.error("decode error: %s", e)
 
 
 def send_telegram(message, token, chat_id):

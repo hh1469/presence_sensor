@@ -19,7 +19,7 @@
     overlay = final: prev: {
       presence_sensor = prev.python3Packages.buildPythonPackage rec {
         pname = "presence_sensor";
-        version = "0.1.0";
+        version = "0.2.0";
 
         src = ./.;
 
