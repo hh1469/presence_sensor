@@ -1,5 +1,5 @@
 {
-  description = "Simple mqtt exporter";
+  description = "Simple presence sensor checker";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -17,7 +17,7 @@
     };
   in {
     overlay = final: prev: {
-      mqtt_exporter = prev.python3Packages.buildPythonPackage rec {
+      presence_sensor = prev.python3Packages.buildPythonPackage rec {
         pname = "presence_sensor";
         version = "0.1.0";
 
@@ -27,21 +27,22 @@
 
         installPhase = ''
           mkdir -p $out/bin
-          cp mqtt_exporter.py $out/bin/mqtt_exporter
+          cp presence_sensor.py $out/bin/presence_sensor
         '';
 
         meta = with pkgs.lib; {
-          description = "Simple prometheus exporter from mqtt";
+          description = "Simple presence sensor checker";
           license = licenses.mit;
         };
 
         propagatedBuildInputs = with prev; [
           python3Packages.paho-mqtt
+          python3Packages.requests
         ];
       };
     };
 
-    packages.${system}.default = pkgs.mqtt_exporter;
+    packages.${system}.default = pkgs.presence_sensor;
 
     devShell.${system} = pkgs.mkShell {
       buildInputs = with pkgs; [
