@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-checks the presence sensor
+checks the presence sensors
 """
 
 import argparse
@@ -12,7 +12,11 @@ import paho.mqtt.client as mqtt
 
 logger = logging.getLogger(__name__)
 
-LAST_OCCUPANCY = None
+LAST_OCCUPANCY = {
+    "1": False,
+    "2": False,
+    "3": False,
+}
 
 TELEGRAM_TOKEN = None
 TELEGRAM_CHATID = None
@@ -30,9 +34,17 @@ class ArgumentParserReadFileAction(argparse.Action):
             setattr(namespace, self.dest, f.readline().strip())
 
 
+def check_state_changed(sensor, value):
+    if sensor in LAST_OCCUPANCY:
+        if LAST_OCCUPANCY.get(sensor) == value:
+            return False
+    LAST_OCCUPANCY[sensor] = value
+    return True
+
+
 def start(broker, user, passwd):
     "setup mqtt client"
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(user, passwd)
     client.on_connect = on_connect
     client.on_message = on_message
@@ -41,13 +53,15 @@ def start(broker, user, passwd):
     client.loop_forever()
 
 
-def on_connect(client, _userdata, _flags, rc):
+def on_connect(client, _userdata, _flags, rc, properties):
     """
     mqtt connection handler
     """
     if rc == 0:
         logger.debug("subscribe")
         client.subscribe("zigbee/Sonoff Presence Sensor 1/#")
+        client.subscribe("zigbee/Sonoff Presence Sensor 2/#")
+        client.subscribe("zigbee/Presence Sensor 1/#")
         # client.subscribe("zigbee2mqtt/#")
     else:
         logger.error("on_connect status %s", rc)
@@ -59,26 +73,28 @@ def on_message(_client, _userdata, message):
     """
     try:
         if message.topic == "zigbee/Sonoff Presence Sensor 1":
-            read_prensence_payload(message)
+            read_prensence_payload("1", message)
+        if message.topic == "zigbee/Sonoff Presence Sensor 2":
+            read_prensence_payload("2", message)
+        if message.topic == "zigbee/Presence Sensor 1":
+            read_prensence_payload("3", message)
     except ValueError as e:
         logger.error("error on_message: %s", e)
     except Exception as e:
         logger.error("error on_message: %s", e)
 
 
-def read_prensence_payload(message):
+def read_prensence_payload(sensor, message):
     """
     parses the mqtt message
     """
-    global LAST_OCCUPANCY
     try:
         json_data = json.loads(message.payload.decode())
         logger.warning(json_data)
         val = json_data.get("occupancy")
-        if val != LAST_OCCUPANCY:
-            LAST_OCCUPANCY = val
+        if check_state_changed(sensor, val):
             send_telegram(
-                f"occupancy changed: {val}",
+                f"occupancy changed {sensor}: {val}",
                 TELEGRAM_TOKEN,
                 TELEGRAM_CHATID,
             )
