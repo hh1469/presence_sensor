@@ -4,11 +4,11 @@
 checks the presence sensors
 """
 
-import argparse
 import json
 import logging
 import requests
 import paho.mqtt.client as mqtt
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +20,6 @@ LAST_OCCUPANCY = {
 
 TELEGRAM_TOKEN = None
 TELEGRAM_CHATID = None
-
-
-class ArgumentParserReadFileAction(argparse.Action):
-    """
-    read value from file
-    """
-
-    def __call__(self, _parser, namespace, values, _option_string=None):
-        if not isinstance(values, str):
-            raise argparse.ArgumentError(self, "value must be a sring")
-        with open(values, "r", encoding="utf-8") as f:
-            setattr(namespace, self.dest, f.readline().strip())
 
 
 def check_state_changed(sensor, value):
@@ -112,35 +100,21 @@ def send_telegram(message, token, chat_id):
     logger.warning(requests.get(url, timeout=2).json())
 
 
+def read_env(varname, default=None):
+    val = os.environ.get(varname, default)
+    if val is None:
+        raise RuntimeError(f"missing required variable: {varname}")
+    return val
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="presence_sensor", description="checks the presence sensor"
-    )
-    parser.add_argument(
-        "-b", required=True, dest="mqtt_broker", help="broker name or address"
-    )
-    parser.add_argument("-u", required=True, dest="mqtt_user", help="username")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-p", dest="passwd", help="password")
-    group.add_argument(
-        "-pf",
-        dest="passwd",
-        action=ArgumentParserReadFileAction,
-        help="path to file that stores a password",
-    )
-    # telegram
-    parser.add_argument(
-        "-c", required=True, dest="telegram_chatid", help="telegram chatid"
-    )
-    group2 = parser.add_mutually_exclusive_group(required=True)
-    group2.add_argument(
-        "-t",
-        dest="telegram_token",
-        action=ArgumentParserReadFileAction,
-        help="path to file that stores the telegram token",
-    )
-    args = parser.parse_args()
-    TELEGRAM_CHATID = args.telegram_chatid
-    TELEGRAM_TOKEN = args.telegram_token
+    mqtt_broker = read_env("MQTT_BROKER")
+    mqtt_user = read_env("MQTT_USER")
+    mqtt_passwd = read_env("MQTT_PASSWD")
+    telegram_chatid = read_env("TELEGRAM_CHATID")
+    telegram_token = read_env("TELEGRAM_TOKEN")
+
+    TELEGRAM_CHATID = telegram_chatid
+    TELEGRAM_TOKEN = telegram_token
     while True:
-        start(args.mqtt_broker, args.mqtt_user, args.passwd)
+        start(mqtt_broker, mqtt_user, mqtt_passwd)
